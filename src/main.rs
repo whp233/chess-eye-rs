@@ -81,95 +81,95 @@ async fn main() -> Result<()> {
     println!("[loop] 每秒轮询，Ctrl+C 退出");
     println!();
 
-    let mut last_fen = String::new();
-    let mut tempo: std::collections::HashMap<String,i32> = std::collections::HashMap::new();
-    tempo.insert("fast_streak".into(), 0);
-    let mut scan: u64 = 0;
-    loop {
-        scan += 1;
-        // 优雅退出：Ctrl+C
-        if scan % 10 == 0 {
-            // 每 10 秒打个心跳，免得用户以为卡死
-            println!("[#{}] alive, mode={} waiting...", scan, mode);
-        }
-
-        let mut fen_opt: Option<String> = None;
-        let mut side_opt: Option<String> = None;
-        let mut speed_opt: Option<String> = None;
-        if let Some(b) = board.as_mut() {
-            match b.connect_and_fetch().await {
-                Ok(st) => {
-                    // 仅在 FEN 变化时分析（复刻 Python _poll_once 的 stale 逻辑简化版）
-                    if st.fen != last_fen {
-                        println!("[#{}] {} vs {} | {} to move | ply {} | {}", scan, st.white, st.black, st.side_to_move, st.ply, st.fen);
-                        last_fen = st.fen.clone();
-                        fen_opt = Some(st.fen.clone());
-                        side_opt = Some(st.side_to_move.clone());
-                        speed_opt = Some(st.speed.clone());
-                    } else if scan % 5 == 1 {
-                        println!("[#{}] waiting for move... fen unchanged", scan);
-                    }
-                }
-                Err(e) => {
-                    if scan % 5 == 1 {
-                        eprintln!("[#{}] lichess fetch failed: {} (检查 token/gameId/网络，NO_PROXY 需含 lichess.org)", scan, e);
-                    }
-                }
-            }
-        } else {
-            // 无 board 时用起始局面演示（便于无 token 时也能看双轨）
-            if last_fen.is_empty() {
-                last_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string();
-                fen_opt = Some(last_fen.clone());
-                side_opt = Some("White".to_string());
-                speed_opt = Some("rapid".to_string());
-                println!("[#{}] demo FEN (无 token 演示): {}", scan, last_fen);
-            }
-        }
-
-        if let Some(fen) = fen_opt {
-            // 仅在己方回合分析（复刻 Python board.turn != player_color 则等待）
-            let is_white_turn = fen.split(' ').nth(1).unwrap_or("w") == "w";
-            let my_is_white = color == "w";
-            let my_turn = is_white_turn == my_is_white;
-            if !my_turn {
-                println!("  -> 对手回合，等待...");
-            } else {
-                // 引擎取 top5（dual 共享，单轨各走一边）
-                match eng.analyze_raw(&fen, 16).await {
-                    Ok(raw) if !raw.is_empty() => {
-                        if exact_mode {
-                            let best = &raw[0];
-                            println!("  [POWER] {}  ev {}  mate {:?}  (ELO 2200 纯 Best)", best.mv, best.ev, best.mate);
+    // 浮窗共享状态（eframe 在主线程，轮询在后台 tokio 任务）
+    let overlay_state = overlay::create_shared();
+    let overlay_for_bg = overlay_state.clone();
+    // 后台轮询任务
+    let bg_handle = {
+        let mut board = board;
+        let mut last_fen_bg = String::new();
+        let mut tempo_bg = tempo;
+        let overlay_bg = overlay_for_bg.clone();
+        let mode_bg = mode.clone();
+        let color_bg = color.clone();
+        tokio::spawn(async move {
+            let mut scan: u64 = 0;
+            let dual_bg = mode_bg == "3" || mode_bg == "dual" || mode_bg == "3.双轨";
+            let human_bg = mode_bg == "2" || mode_bg == "human" || dual_bg;
+            let exact_bg = mode_bg == "1" || mode_bg == "exact" || dual_bg;
+            loop {
+                scan += 1;
+                let mut fen_opt: Option<String> = None;
+                let mut speed_opt: Option<String> = None;
+                if let Some(b) = board.as_mut() {
+                    match b.connect_and_fetch().await {
+                        Ok(st) => {
+                            if st.fen != last_fen_bg {
+                                println!("[#{}] {} vs {} | {} to move | ply {} | {}", scan, st.white, st.black, st.side_to_move, st.ply, st.fen);
+                                {
+                                    let mut s = overlay_bg.lock().unwrap();
+                                    s.fen = st.fen.clone();
+                                    s.status = format!("{} vs {} | {}", st.white, st.black, st.side_to_move);
+                                }
+                                last_fen_bg = st.fen.clone();
+                                fen_opt = Some(st.fen.clone());
+                                speed_opt = Some(st.speed.clone());
+                            }
                         }
-                        if human_mode {
-                            // 人味：用 raw 复用，避免二次引擎调用
-                            let cands: Vec<(String,i32)> = raw.iter().map(|c| (c.mv.clone(), c.ev)).collect();
-                            let state: std::collections::HashMap<String,String> = std::collections::HashMap::new();
-                            let (_eff, weights) = human::accuracy::policy(&fen, &cands, Some(elo), 0.85, None, speed_opt.as_deref().unwrap_or("rapid"), &state);
-                            if let Some((mv, think, conf)) = human::mode::get_human_move_from_raw(&fen, &raw.iter().map(|c| (c.mv.clone(), c.ev, c.mate)).collect::<Vec<_>>(), 0.85, speed_opt.as_deref().unwrap_or("rapid"), &mut tempo, weights) {
-                                println!("  [HUMAN] {}  think {:.1}s  conf {:.0}%  (85%)", mv, think, conf*100.0);
-                            } else {
-                                println!("  [HUMAN] (no move)");
+                        Err(e) => {
+                            if scan % 5 == 1 { eprintln!("[#{}] lichess fetch: {}", scan, e); }
+                        }
+                    }
+                } else if last_fen_bg.is_empty() {
+                    last_fen_bg = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string();
+                    fen_opt = Some(last_fen_bg.clone());
+                    speed_opt = Some("rapid".to_string());
+                    println!("[#{}] demo FEN (无 token): {}", scan, last_fen_bg);
+                    {
+                        let mut s = overlay_bg.lock().unwrap();
+                        s.fen = last_fen_bg.clone();
+                        s.status = "demo (无 token)".into();
+                    }
+                }
+                if let Some(fen) = fen_opt {
+                    let is_white = fen.split(' ').nth(1).unwrap_or("w") == "w";
+                    let my_is_white = color_bg == "w";
+                    if is_white == my_is_white {
+                        // 复用 engine（需在后台重新创建，简化：每次新建）
+                        let mut eng_bg = engine::Engine::new(&find_stockfish());
+                        if let Ok(raw) = eng_bg.analyze_raw(&fen, 16).await {
+                            if !raw.is_empty() {
+                                let mut s = overlay_bg.lock().unwrap();
+                                if exact_bg {
+                                    let best = &raw[0];
+                                    let txt = format!("{}  ev {} ", best.mv, best.ev);
+                                    println!("  [POWER] {}", txt);
+                                    s.power = txt;
+                                }
+                                if human_bg {
+                                    let cands: Vec<(String,i32)> = raw.iter().map(|c| (c.mv.clone(), c.ev)).collect();
+                                    let state: std::collections::HashMap<String,String> = std::collections::HashMap::new();
+                                    let (_eff, weights) = human::accuracy::policy(&fen, &cands, Some(elo), 0.85, None, speed_opt.as_deref().unwrap_or("rapid"), &state);
+                                    if let Some((mv, think, conf)) = human::mode::get_human_move_from_raw(&fen, &raw.iter().map(|c| (c.mv.clone(), c.ev, c.mate)).collect::<Vec<_>>(), 0.85, speed_opt.as_deref().unwrap_or("rapid"), &mut tempo_bg, weights) {
+                                        let txt = format!("{}  {:.1}s  {:.0}%", mv, think, conf*100.0);
+                                        println!("  [HUMAN] {}", txt);
+                                        s.human = txt;
+                                    }
+                                }
                             }
                         }
                     }
-                    Ok(_) => eprintln!("  [engine] no candidates"),
-                    Err(e) => eprintln!("  [engine] analyze failed: {}", e),
                 }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
-        }
+        })
+    };
 
-        // 1s 轮询 + 响应 Ctrl+C
-        tokio::select! {
-            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {},
-            _ = tokio::signal::ctrl_c() => {
-                println!("\n[exit] Ctrl+C 退出");
-                break;
-            }
-        }
-    }
-
+    // 主线程跑 eframe 浮窗（阻塞直到窗口关闭）
+    overlay::run_overlay(overlay_state);
+    // 窗口关了，停后台
+    bg_handle.abort();
+    println!("[exit] 浮窗关闭，退出");
     Ok(())
 }
 

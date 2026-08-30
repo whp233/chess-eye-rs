@@ -17,10 +17,8 @@ rand = "0.8"
 anyhow = "1.0"
 thiserror = "1.0"
 chrono = "0.4"
-
-# GUI — M2 才启用，M0 先注释避免 CI 太重
-# eframe = { version = "0.28", optional = true }
-# egui = { version = "0.28", optional = true }
+eframe = "0.27"
+egui = "0.27"
 
 [dev-dependencies]
 # mirror 61 python tests
