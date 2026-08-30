@@ -1,6 +1,6 @@
 [package]
 name = "chess-eye-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "ChessEye Rust — Lichess Board SSE + Stockfish + Human Mode + Dual Display"
 authors = ["whp233"]
