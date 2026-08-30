@@ -79,7 +79,7 @@ pub fn run_overlay(state: SharedState) {
         viewport,
         ..Default::default()
     };
-    let _ = eframe::run_native("ChessEye", options, Box::new(|_cc| Ok(Box::new(OverlayApp::new(state)))));
+    let _ = eframe::run_native("ChessEye", options, Box::new(|_cc| Box::new(OverlayApp::new(state))));
 }
 
 // 兼容旧 placeholder，供 main  fallback

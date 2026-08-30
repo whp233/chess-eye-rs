@@ -81,6 +81,9 @@ async fn main() -> Result<()> {
     println!("[loop] 每秒轮询，Ctrl+C 退出");
     println!();
 
+    let mut tempo: std::collections::HashMap<String,i32> = std::collections::HashMap::new();
+    tempo.insert("fast_streak".into(), 0);
+
     // 浮窗共享状态（eframe 在主线程，轮询在后台 tokio 任务）
     let overlay_state = overlay::create_shared();
     let overlay_for_bg = overlay_state.clone();
