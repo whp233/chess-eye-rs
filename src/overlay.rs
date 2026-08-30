@@ -71,15 +71,17 @@ pub fn run_overlay(state: SharedState) {
         .with_inner_size([420.0, 340.0])
         .with_position([1920.0 - 460.0, 1080.0 - 380.0]) // 右下角，复刻 Python 的 sw-40, sh-60
         .with_always_on_top()
-        .with_transparent(true)
-        .with_decorations(false) // 无边框，可拖动靠 egui 的 drag
+        .with_decorations(true) // 有标题栏便于拖动/调试，稳定后再无边框
         .with_resizable(false);
 
     let options = eframe::NativeOptions {
         viewport,
         ..Default::default()
     };
-    let _ = eframe::run_native("ChessEye", options, Box::new(|_cc| Box::new(OverlayApp::new(state))));
+    let res = eframe::run_native("ChessEye", options, Box::new(|_cc| Box::new(OverlayApp::new(state))));
+    if let Err(e) = res {
+        eprintln!("[overlay] eframe error: {:?}", e);
+    }
 }
 
 // 兼容旧 placeholder，供 main  fallback

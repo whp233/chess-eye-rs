@@ -24,7 +24,7 @@ impl Engine {
     pub async fn probe(&mut self) -> Result<()> {
         self.spawn().await?;
         self.cmd("uci").await?;
-        self.expect_contains("uciok", 3000).await?;
+        self.expect_contains("uciok", 8000).await?;
         self.quit().await;
         Ok(())
     }
@@ -33,11 +33,11 @@ impl Engine {
     pub async fn analyze_raw(&mut self, fen: &str, depth: u8) -> Result<Vec<RawCandidate>> {
         self.spawn().await?;
         self.cmd("uci").await?;
-        self.expect_contains("uciok", 3000).await?;
+        self.expect_contains("uciok", 8000).await?;
         // 开 multipv 5
         self.cmd("setoption name MultiPV value 5").await?;
         self.cmd("isready").await?;
-        self.expect_contains("readyok", 2000).await?;
+        self.expect_contains("readyok", 5000).await?;
         self.cmd(&format!("position fen {}", fen)).await?;
         self.cmd(&format!("go depth {}", depth)).await?;
         let lines = self.collect_until_bestmove(12000).await?;
