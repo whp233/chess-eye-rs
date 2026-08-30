@@ -43,7 +43,7 @@ fn tactical(chess: &Chess) -> bool {
         if chess.is_capture(m) {
             // 仅非兵被吃算战术（镜像 Python）
             if let Some(pc) = chess.board().piece_at(m.to()) {
-                if pc != shakmaty::Role::Pawn { return true; }
+                if pc.role != shakmaty::Role::Pawn { return true; }
             }
         }
     }

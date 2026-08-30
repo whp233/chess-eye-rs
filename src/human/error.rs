@@ -29,7 +29,7 @@ fn tactical(chess: &Chess) -> f64 {
     for m in chess.legal_moves() {
         if chess.is_capture(m) {
             if let Some(pc) = chess.board().piece_at(m.to()) {
-                if pc != Role::Pawn { return 1.0; }
+                if pc.role != Role::Pawn { return 1.0; }
             }
         }
     }
