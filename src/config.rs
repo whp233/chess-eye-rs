@@ -59,24 +59,23 @@ impl Default for Config {
 }
 
 pub fn load_or_default() -> Config {
-    let path = std::path::Path::new("config.json");
-    if let Ok(s) = std::fs::read_to_string(path) {
-        if let Ok(cfg) = serde_json::from_str::<Config>(&s) {
-            // 兼容旧 human.enabled → mode
-            let mut cfg = cfg;
-            if cfg.mode == "exact" {
-                if let Some(true) = cfg.human.enabled {
-                    cfg.mode = "human".into();
+    for p in [
+        std::path::Path::new("config.json").to_path_buf(),
+        std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("config.json"))).unwrap_or_default(),
+        std::path::Path::new(r"C:\Users\whp18\Desktop\Desktop\chess-eye\config.json").to_path_buf(),
+        std::path::Path::new(r"C:\Users\whp18\Desktop\Desktop\chess-eye-rs\config.json").to_path_buf(),
+    ] {
+        if p.as_os_str().is_empty() { continue; }
+        if let Ok(s) = std::fs::read_to_string(&p) {
+            if let Ok(cfg) = serde_json::from_str::<Config>(&s) {
+                let mut cfg = cfg;
+                if cfg.mode == "exact" {
+                    if let Some(true) = cfg.human.enabled {
+                        cfg.mode = "human".into();
+                    }
                 }
+                return cfg;
             }
-            return cfg;
-        }
-    }
-    // 也尝试从 Python 目录的 config.json 读
-    let py_path = r"C:\Users\whp18\Desktop\Desktop\chess-eye\config.json";
-    if let Ok(s) = std::fs::read_to_string(py_path) {
-        if let Ok(cfg) = serde_json::from_str::<Config>(&s) {
-            return cfg;
         }
     }
     Config::default()

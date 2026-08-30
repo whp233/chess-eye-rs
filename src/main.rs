@@ -10,6 +10,30 @@ mod human;
 
 use anyhow::Result;
 
+fn find_stockfish() -> String {
+    // 按优先级找：当前目录 → exe 所在目录 → 经典 Python 目录 → 绝对路径
+    let candidates = [
+        "stockfish.exe",
+        "stockfish",
+        "./stockfish.exe",
+        "C:\\Users\\whp18\\Desktop\\Desktop\\chess-eye\\stockfish.exe",
+        "C:\\Users\\whp18\\Desktop\\Desktop\\chess-eye-rs\\stockfish.exe",
+    ];
+    // 再加 exe 所在目录
+    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let mut all = candidates.to_vec();
+    if let Some(d) = exe_dir {
+        all.push(d.join("stockfish.exe").to_string_lossy().to_string().leak());
+        all.push(d.join("stockfish").to_string_lossy().to_string().leak());
+    }
+    for c in all {
+        if std::path::Path::new(c).exists() {
+            return c.to_string();
+        }
+    }
+    "stockfish.exe".to_string()
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("=== ChessEye Rust v0.1.0 (M0) ===");
@@ -26,8 +50,10 @@ async fn main() -> Result<()> {
 
     println!("mode={} game={} color={} elo={}", mode, game_id, color, elo);
 
-    // 引擎自检（会尝试启动 stockfish.exe，不存在则提示）
-    let mut eng = engine::Engine::new("stockfish.exe");
+    // 引擎自检（多路径查找，解决 Downloads 解压后找不到引擎的问题）
+    let stockfish_path = find_stockfish();
+    println!("[engine] 尝试路径: {}", stockfish_path);
+    let mut eng = engine::Engine::new(&stockfish_path);
     match eng.probe().await {
         Ok(_) => println!("[engine] Stockfish ready (POPCNT)"),
         Err(e) => eprintln!("[engine] not ready: {} (先把 stockfish.exe 放到 exe 同目录)", e),
