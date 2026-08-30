@@ -1,0 +1,10 @@
+{
+  "lichess_token": "lip_xxx_请填你的token",
+  "human": {
+    "accuracy": 0.85,
+    "time_mode": "instant",
+    "accuracy_mode": "static"
+  },
+  "mode": "dual",
+  "elo": 1600
+}
