@@ -13,7 +13,7 @@ fn complexity_tier(chess: &Chess) -> &'static str {
     if legal == 0 { return "simple"; }
     if chess.is_check() { return "tactical"; }
     for m in chess.legal_moves() {
-        if chess.is_capture(m) {
+        if m.is_capture() {
             if let Some(pc) = chess.board().piece_at(m.to()) {
                 if pc.role != Role::Pawn { return "tactical"; }
             }

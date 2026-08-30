@@ -4,8 +4,6 @@
 use std::collections::HashMap;
 use shakmaty::{Chess, Position};
 
-use crate::human::error;
-
 // 闭区间权威表 (lo < elo <= hi)
 pub const ELO_WEIGHTS: &[((u16, u16), [f64; 5])] = &[
     ((0, 800),    [0.25, 0.22, 0.20, 0.18, 0.15]),
@@ -40,7 +38,7 @@ pub fn elo_base_acc(elo: u16) -> f64 {
 fn tactical(chess: &Chess) -> bool {
     if chess.is_check() { return true; }
     for m in chess.legal_moves() {
-        if chess.is_capture(m) {
+        if m.is_capture() {
             // 仅非兵被吃算战术（镜像 Python）
             if let Some(pc) = chess.board().piece_at(m.to()) {
                 if pc.role != shakmaty::Role::Pawn { return true; }
@@ -60,7 +58,7 @@ pub fn effective_accuracy(accuracy: f64, chess: &Chess, remaining_ms: Option<i64
     } else if legal <= 20 {
         adj += 0.0;
     }
-    if chess.ply() <= 16 { // fullmove_number <=8  → ply <=16
+    if chess.fullmoves().get() <= 8 { // fullmove_number <=8  → ply <=16
         adj += 0.03;
     }
     if let Some(ms) = remaining_ms {

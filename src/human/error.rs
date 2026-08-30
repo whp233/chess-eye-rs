@@ -27,7 +27,7 @@ fn time_pressure(frac: f64) -> f64 {
 fn tactical(chess: &Chess) -> f64 {
     if chess.is_check() { return 1.0; }
     for m in chess.legal_moves() {
-        if chess.is_capture(m) {
+        if m.is_capture() {
             if let Some(pc) = chess.board().piece_at(m.to()) {
                 if pc.role != Role::Pawn { return 1.0; }
             }

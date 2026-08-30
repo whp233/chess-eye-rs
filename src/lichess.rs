@@ -113,11 +113,11 @@ impl LichessBoard {
         for mv in moves_str.split_whitespace() {
             if let Ok(uci) = UciMove::from_str(mv) {
                 if let Ok(m) = uci.to_move(&pos) {
-                    pos.play_unchecked(m);
+                    pos.play_unchecked(&m);
                 }
             }
         }
-        let ply = pos.ply() as u32;
+        let ply = (pos.fullmoves().get() - 1) * 2 + if pos.turn().is_white() { 0 } else { 1 };
         let fen = Fen::from_position(pos.clone(), shakmaty::EnPassantMode::Legal).to_string();
         let side = if pos.turn().is_white() { "White" } else { "Black" };
         let mn = if ply == 0 { 1 } else { (ply / 2) + 1 };

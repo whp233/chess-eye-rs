@@ -2,7 +2,7 @@
 //! 单掷契约 + miss 0.20 [40,160] + 四门槛
 
 use rand::Rng;
-use shakmaty::{Chess, Role, Square, Position};
+use shakmaty::{Chess, Role, Position};
 use std::collections::HashMap;
 use std::str::FromStr;
 use shakmaty::fen::Fen;
@@ -74,13 +74,13 @@ pub fn deliberate_miss_stub() -> Option<(String,i32)> { None }
 pub fn get_human_move_from_raw(
     fen: &str,
     raw: &[(String,i32,Option<i32>)],
-    accuracy: f64,
+    _accuracy: f64,
     _speed: &str,
     tempo: &mut HashMap<String,i32>,
     policy_weights: Vec<f64>,
 ) -> Option<(String,f64,f64)> {
     // book 复用 raw 已在 human::book 处理，此处仅演示主路径
-    let mut cands = filter_blunders(raw.to_vec());
+    let cands = filter_blunders(raw.to_vec());
     if cands.is_empty() { return None; }
     let pairs: Vec<(String,i32)> = cands.iter().map(|(m,e,_)| (m.clone(),*e)).collect();
     let (mv, rank) = weighted_pick(&pairs, &policy_weights);
@@ -88,8 +88,8 @@ pub fn get_human_move_from_raw(
     // 思考时间占位，调 human::time
     let think = crate::human::time::calculate(fen, _speed, None, "human", tempo).unwrap_or(2.0);
     // miss 注入（20%）
-    let mut final_mv = mv;
-    let mut final_conf = (conf*100.0).round()/100.0;
+    let final_mv = mv;
+    let final_conf = (conf*100.0).round()/100.0;
     if rand::random::<f64>() < MISS_RATE {
         let chess = Fen::from_str(fen).ok().and_then(|f| f.into_position(shakmaty::CastlingMode::Standard).ok()).unwrap_or_default();
         if position_allows_miss(&chess, &cands) {
