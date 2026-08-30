@@ -2,7 +2,7 @@
 //! 有效性：P(best)=eff, tail 塑形只动 (1-eff)，单掷唯一 random 在调用方
 
 use std::collections::HashMap;
-use shakmaty::Chess;
+use shakmaty::{Chess, Position};
 
 use crate::human::error;
 

@@ -2,7 +2,7 @@
 //! 单掷契约 + miss 0.20 [40,160] + 四门槛
 
 use rand::Rng;
-use shakmaty::{Chess, Role, Square};
+use shakmaty::{Chess, Role, Square, Position};
 use std::collections::HashMap;
 use std::str::FromStr;
 use shakmaty::fen::Fen;
@@ -53,7 +53,11 @@ fn position_allows_miss(chess: &Chess, cands: &[(String,i32,Option<i32>)]) -> bo
     if chess.is_check() { return false; }
     let best = cands.iter().map(|(_,ev,_)| *ev).max().unwrap_or(0);
     if best <= LOST_EVAL_CP { return false; }
-    let material: i32 = chess.board().iter().filter(|(_,pc)| pc.role != Role::King).map(|(_,pc)| piece_value(pc.role)).sum();
+    let material: i32 = chess.board().occupied().into_iter()
+        .filter_map(|sq| chess.board().piece_at(sq))
+        .filter(|pc| pc.role != Role::King)
+        .map(|pc| piece_value(pc.role))
+        .sum();
     if material <= ENDGAME_MATERIAL { return false; }
     if cands.len() >= 2 {
         let mut evs: Vec<i32> = cands.iter().map(|(_,ev,_)| *ev).collect();

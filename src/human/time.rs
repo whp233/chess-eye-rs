@@ -1,7 +1,7 @@
 //! time.rs — 对应 human_time.py 完整翻译
 
 use std::collections::HashMap;
-use shakmaty::{Chess, Role};
+use shakmaty::{Chess, Role, Position};
 
 fn base_budget(speed: &str) -> i64 {
     match speed {

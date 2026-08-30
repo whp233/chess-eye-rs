@@ -2,7 +2,7 @@
 //! 纯函数零随机，四源
 
 use std::collections::HashMap;
-use shakmaty::{Chess, Role};
+use shakmaty::{Chess, Role, Position};
 
 #[derive(Debug, Clone)]
 pub struct Profile {
