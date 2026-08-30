@@ -1,0 +1,9 @@
+/target
+/Cargo.lock
+*.exe
+*.pdb
+book.bin
+stockfish.exe
+config.json
+.vscode/
+.idea/
